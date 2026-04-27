@@ -21,10 +21,10 @@ namespace WEBAPI2026.Controllers
     // 這就像告訴前端：
     // response 的 Content-Type 是 application/json。
     [Produces("application/json")]
-    public class SalesOrderController : ControllerBase
+    public class SalesOrderController : ControllerBase // → 實際建立 / 回傳這些資料
     {
         [HttpPost]
-        public ActionResult<ApiResponse<SalesOrderDto>> GetSalesOrders([FromBody] DateRangeRequest request)
+        public ActionResult<ApiResponse<SalesOrderDto>> GetSalesOrders([FromBody] DateRangeRequest request) // 這支 API 的 Response.Data 裡面，每一筆資料都會長成 SalesOrderDto 的格式
         {
             if (request == null || string.IsNullOrWhiteSpace(request.DateTimestampGTE))
             {

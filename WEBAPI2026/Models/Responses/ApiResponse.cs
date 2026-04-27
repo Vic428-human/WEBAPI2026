@@ -21,7 +21,7 @@ namespace WEBAPI2026.Models.Responses
     //
     // ApiResponse<InventoryDto>
     // 代表 Data 是 List<InventoryDto>
-    public class ApiResponse<T>
+    public class ApiResponse<T> // → 定義外層 Message / Status / Data
     {
         // Message：回傳訊息
         //
