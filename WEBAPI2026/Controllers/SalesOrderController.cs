@@ -26,7 +26,7 @@ namespace WEBAPI2026.Controllers
         [HttpPost]
         public ActionResult<ApiResponse<SalesOrderDto>> GetSalesOrders([FromBody] DateRangeRequest request) // 這支 API 的 Response.Data 裡面，每一筆資料都會長成 SalesOrderDto 的格式
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.DateTimestampGTE))
+            if (request == null || string.IsNullOrWhiteSpace(request.DateTimestampGTE)) //   確保 dateTimestampGTE 欄位不是空字串、不是 null、也不是只有空白。
             {
                 return BadRequest(new ApiResponse<SalesOrderDto>
                 {
@@ -36,6 +36,7 @@ namespace WEBAPI2026.Controllers
                 });
             }
 
+            // 如果 dateTimestampGTE 有值，程式就會建立一筆 SalesOrderDto 測試資料，並回傳
             var data = new List<SalesOrderDto>
             {
                 new SalesOrderDto
