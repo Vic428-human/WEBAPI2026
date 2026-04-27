@@ -1,0 +1,63 @@
+﻿using System;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc;
+using WEBAPI2026.Models.Dtos;
+using WEBAPI2026.Models.Requests;
+using WEBAPI2026.Models.Responses;
+
+namespace WEBAPI2026.Controllers
+{
+    // 這是一支 Web API Controller
+    [ApiController]
+
+    // 外部系統呼叫的路徑是 POST /api/so
+    [Route("api/so")]
+
+    // 告訴 Swagger / 外部使用者：
+    // 這支 API 回傳格式是 application/json，
+    // 不要顯示成 text/plain。
+    //
+    // 用 React 角度理解：
+    // 這就像告訴前端：
+    // response 的 Content-Type 是 application/json。
+    [Produces("application/json")]
+    public class SalesOrderController : ControllerBase
+    {
+        [HttpPost]
+        public ActionResult<ApiResponse<SalesOrderDto>> GetSalesOrders([FromBody] DateRangeRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.DateTimestampGTE))
+            {
+                return BadRequest(new ApiResponse<SalesOrderDto>
+                {
+                    Message = "dateTimestampGTE is required",
+                    Status = 400,
+                    Data = new List<SalesOrderDto>()
+                });
+            }
+
+            var data = new List<SalesOrderDto>
+            {
+                new SalesOrderDto
+                {
+                    TransactionID = Guid.NewGuid().ToString(),
+                    POSAppleID = "POS001",
+                    InvoiceNumber = "INV202604270001",
+                    TransationTS = "2026-04-27 10:30:00",
+                    MPNID = "MPN001",
+                    SerialNumber = "SN123456789",
+                    TransactionType = "Sale",
+                    UpdateTS = "2026-04-27 10:35:00",
+                    Comments = ""
+                }
+            };
+
+            return Ok(new ApiResponse<SalesOrderDto>
+            {
+                Message = "Success",
+                Status = 200,
+                Data = data
+            });
+        }
+    }
+}
