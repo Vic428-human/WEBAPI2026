@@ -26,8 +26,8 @@ namespace WEBAPI2026
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-
-            services.AddControllers()
+            
+            services.AddControllers() // 這行會把你的 SalesOrderController.cs（或其他 Controller）註冊到 ASP.NET Core 的 Routing 系統。這樣 API 路由才能找到對應的 Controller 方法。
             .AddJsonOptions(options =>
             {
                 // 用 React 角度理解：
@@ -44,6 +44,8 @@ namespace WEBAPI2026
                 // 代表「不要幫我改欄位名稱，照 C# class 的屬性名稱輸出」。
                 options.JsonSerializerOptions.PropertyNamingPolicy = null;
             });
+
+            // 這段是把 Swagger 加進來，讓你可以在 /swagger 頁面看到 API 文件，並且直接測試 API
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "WEBAPI2026", Version = "v1" });
@@ -56,6 +58,8 @@ namespace WEBAPI2026
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
+
+                // 這就是啟用 Swagger UI 的地方
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "WEBAPI2026 v1"));
             }
