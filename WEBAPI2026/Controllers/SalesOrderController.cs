@@ -24,7 +24,7 @@ namespace WEBAPI2026.Controllers
     public class SalesOrderController : ControllerBase // → 實際建立 / 回傳這些資料
     {
         [HttpPost]
-        public ActionResult<ApiResponse<SalesOrderDto>> GetSalesOrders([FromBody] DateRangeRequest request) // 這支 API 的 Response.Data 裡面，每一筆資料都會長成 SalesOrderDto 的格式
+        public ActionResult<ApiResponse<SalesOrderDto>> GetSalesOrders([FromBody] DateRangeRequest request) // 接收 request body
         {
             if (request == null || string.IsNullOrWhiteSpace(request.DateTimestampGTE)) //   確保 dateTimestampGTE 欄位不是空字串、不是 null、也不是只有空白。
             {
