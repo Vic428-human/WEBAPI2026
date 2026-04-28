@@ -70,3 +70,44 @@ flowchart TD
 - 啟用 Swagger 測試頁面。
 - 設定 JSON 欄位大小寫不要被自動改掉。
 - 確保 response 可以維持 `Message / Status / Data` 這種文檔要求的格式。
+
+
+## 銷售與庫存資料查詢 API 流程
+
+```mermaid
+flowchart TD
+    A[Client / Swagger<br/>呼叫 API] --> B{呼叫哪一支 API?}
+
+    B -->|POST /api/so| C[SalesOrderController.cs<br/>Controllers/SalesOrderController.cs]
+    B -->|POST /api/inventory| D[InventoryController.cs<br/>Controllers/InventoryController.cs]
+
+    C --> E[讀取 Header<br/>appid / timestamp / sign]
+    D --> E
+
+    E --> F[AuthHeaderHelper.cs<br/>Helpers/AuthHeaderHelper.cs<br/>檢查 Header 是否齊全]
+    F --> G{Header 檢查是否通過?}
+
+    G -->|No| H[ApiResponse.cs<br/>Models/Responses/ApiResponse.cs<br/>包裝錯誤訊息]
+    H --> I[回傳 401 Unauthorized]
+
+    G -->|Yes| J[DateRangeRequest.cs<br/>Models/Requests/DateRangeRequest.cs<br/>接收 request body]
+
+    J --> K{dateTimestampGTE 是否有值?}
+
+    K -->|No| L[ApiResponse.cs<br/>Models/Responses/ApiResponse.cs<br/>包裝錯誤訊息]
+    L --> M[回傳 400 BadRequest]
+
+    K -->|Yes| N{目前是哪支 API?}
+
+    N -->|SO API| O[SalesOrderDto.cs<br/>Models/Dtos/SalesOrderDto.cs<br/>建立 SO 假資料]
+    N -->|Inventory API| P[InventoryDto.cs<br/>Models/Dtos/InventoryDto.cs<br/>建立 Inventory 假資料]
+
+    O --> Q[ApiResponse.cs<br/>Models/Responses/ApiResponse.cs<br/>包裝成功 response]
+    P --> Q
+
+    Q --> R[回傳 200 OK<br/>Message / Status / Data]
+
+    S[Startup.cs<br/>Startup.cs] -. 註冊 Controller .-> C
+    S -. 註冊 Controller .-> D
+    S -. 設定 JSON 欄位大小寫保留 .-> Q
+```
