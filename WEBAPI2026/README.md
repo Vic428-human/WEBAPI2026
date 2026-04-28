@@ -80,7 +80,7 @@ flowchart TD
 
 兩支 API 共用相同的 request / response / header validation 流程，但回傳的 Data DTO 不同。
 
-```mermaid
+```
 flowchart TD
     A[Client / Swagger<br/>呼叫 API] --> B{呼叫哪一支 API?}
 
@@ -116,42 +116,4 @@ flowchart TD
     S[Startup.cs<br/>Startup.cs] -. 註冊 Controller .-> C
     S -. 註冊 Controller .-> D
     S -. 設定 JSON 欄位大小寫保留 .-> Q
-
-
-## File Responsibilities
-
-### `Controllers/SalesOrderController.cs`
-- 提供 `POST /api/so`
-- 讀取 Header 與 request body
-- 驗證 Header 與 `dateTimestampGTE`
-- 建立 SO 假資料並回傳
-
-### `Controllers/InventoryController.cs`
-- 提供 `POST /api/inventory`
-- 讀取 Header 與 request body
-- 驗證 Header 與 `dateTimestampGTE`
-- 建立 Inventory 假資料並回傳
-
-### `Helpers/AuthHeaderHelper.cs`
-- 檢查 `appid`、`timestamp`、`sign`
-- 檢查 `timestamp` 是否為 13 位數字
-- 驗證失敗時回傳錯誤訊息
-
-### `Models/Requests/DateRangeRequest.cs`
-- 定義 request body 格式
-- 對應 `dateTimestampGTE`、`dateTimestampLTE`
-
-### `Models/Dtos/SalesOrderDto.cs`
-- 定義 SO API 的 `Data` 每筆資料格式
-
-### `Models/Dtos/InventoryDto.cs`
-- 定義 Inventory API 的 `Data` 每筆資料格式
-
-### `Models/Responses/ApiResponse.cs`
-- 定義統一 response 格式
-- 包含 `Message`、`Status`、`Data`
-
-### `Startup.cs`
-- 註冊 Controller
-- 啟用 Swagger
-- 保留 JSON 欄位大小寫格式
+```
