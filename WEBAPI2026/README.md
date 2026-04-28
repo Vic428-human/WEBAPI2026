@@ -1,5 +1,7 @@
 ﻿
 
+# 流程圖
+
 ```mermaid
 flowchart TD
     A[Client / Swagger<br/>POST /api/so] --> B[SalesOrderController.cs<br/>Controllers/SalesOrderController.cs]
