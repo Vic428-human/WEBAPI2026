@@ -2,6 +2,7 @@
 
 # 1. SO API 單支流程圖
 
+
 ```mermaid
 flowchart TD
     A[Client / Swagger<br/>POST /api/so] --> B[SalesOrderController.cs<br/>Controllers/SalesOrderController.cs]
@@ -80,7 +81,7 @@ flowchart TD
 
 兩支 API 共用相同的 request / response / header validation 流程，但回傳的 Data DTO 不同。
 
-```
+```mermaid
 flowchart TD
     A[Client / Swagger<br/>呼叫 API] --> B{呼叫哪一支 API?}
 
