@@ -117,7 +117,7 @@ flowchart TD
     S -. 註冊 Controller .-> D
     S -. 設定 JSON 欄位大小寫保留 .-> Q
 
-```md
+
 ## File Responsibilities
 
 ### `Controllers/SalesOrderController.cs`
