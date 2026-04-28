@@ -116,4 +116,3 @@ flowchart TD
     S[Startup.cs<br/>Startup.cs] -. 註冊 Controller .-> C
     S -. 註冊 Controller .-> D
     S -. 設定 JSON 欄位大小寫保留 .-> Q
-```
