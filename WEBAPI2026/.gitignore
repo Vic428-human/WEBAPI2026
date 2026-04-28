@@ -5,6 +5,8 @@
 
 # Visual Studio local settings
 .vs/
+obj/
+bin/
 
 # dotenv files
 .env
