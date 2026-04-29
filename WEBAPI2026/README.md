@@ -117,3 +117,45 @@ flowchart TD
     S[Startup.cs<br/>Startup.cs] -. 註冊 Controller .-> C
     S -. 註冊 Controller .-> D
     S -. 設定 JSON 欄位大小寫保留 .-> Q
+
+
+## Header Signature Validation Flow
+
+```mermaid
+flowchart TD
+    A[Client / Swagger<br/>POST /api/so 或 POST /api/inventory] --> B[Controller<br/>SalesOrderController.cs / InventoryController.cs]
+
+    B --> C[讀取 Request Body<br/>DateRangeRequest.cs]
+    B --> D[讀取 Headers<br/>appid / timestamp / sign]
+
+    D --> E[AuthHeaderHelper.cs<br/>檢查 Header 是否存在與格式]
+
+    E --> F{Header 基本檢查<br/>是否通過?}
+
+    F -->|No| G[ApiResponse.cs<br/>包裝錯誤訊息]
+    G --> H[回傳 401 Unauthorized]
+
+    F -->|Yes| I[SignatureHelper.ValidateSign<br/>驗證 receivedSign 是否正確]
+
+    I --> J[SignatureHelper.GenerateSign<br/>根據 request body + appid + timestamp + secretKey<br/>產生 expectedSign]
+
+    J --> K[比對 expectedSign<br/>與 header receivedSign]
+
+    K -->|不一致| L[ApiResponse.cs<br/>包裝 Invalid sign]
+    L --> M[回傳 401 Unauthorized]
+
+    K -->|一致| N[繼續執行 API 主流程]
+
+    N --> O{是哪一支 API?}
+
+    O -->|SO API| P[SalesOrderDto.cs<br/>建立 / 回傳銷售資料格式]
+    O -->|Inventory API| Q[InventoryDto.cs<br/>建立 / 回傳庫存資料格式]
+
+    P --> R[ApiResponse.cs<br/>包裝成功 response]
+    Q --> R
+
+    R --> S[回傳 200 OK<br/>Message / Status / Data]
+
+    T[appsettings.json<br/>ApiAuth:SecretKey] -. 提供 secretKey .-> I
+    T -. 提供 secretKey .-> J
+```
