@@ -1,4 +1,193 @@
 ﻿
+## MD5 Sign 驗證測試流程
+
+目前 API 已加入 `appid / timestamp / sign` 的 Header 驗證。
+
+正式呼叫 `POST /api/so` 或 `POST /api/inventory` 前，需要先根據：
+
+- Request Body
+- `appid`
+- `timestamp`
+- `secretKey`
+
+產生正確的 `sign`。
+
+目前開發階段提供一支 Debug API，方便產生測試用 sign。
+
+---
+
+## 1. 先使用 Debug API 產生 sign
+
+### API
+
+```http
+POST /api/debug/sign
+```
+
+### Request Body
+
+```json
+{
+  "dateTimestampGTE": "2026-04-27 00:00:00",
+  "dateTimestampLTE": "2026-04-27 23:59:59",
+  "appid": "test-app",
+  "timestamp": "1538207443910"
+}
+```
+
+### 說明
+
+這支 Debug API 會根據以下資料產生 sign：
+
+```text
+dateTimestampGTE
+dateTimestampLTE
+appid
+timestamp
+secretKey
+```
+
+其中 `secretKey` 來自：
+
+```text
+appsettings.json
+```
+
+```json
+{
+  "ApiAuth": {
+    "SecretKey": "test-secret-key"
+  }
+}
+```
+
+---
+
+## 2. Debug API 回傳結果
+
+成功後會回傳類似：
+
+```json
+{
+  "Message": "Success",
+  "Status": 200,
+  "Appid": "test-app",
+  "Timestamp": "1538207443910",
+  "Sign": "產生出來的MD5sign"
+}
+```
+
+請複製 `Sign` 的值，等等放到正式 API 的 Header 裡。
+
+---
+
+## 3. 使用 sign 測試 SO API
+
+### API
+
+```http
+POST /api/so
+```
+
+### Headers
+
+```http
+accept: application/json
+Content-Type: application/json
+appid: test-app
+timestamp: 1538207443910
+sign: Debug API 產生出來的 Sign
+```
+
+### Request Body
+
+```json
+{
+  "dateTimestampGTE": "2026-04-27 00:00:00",
+  "dateTimestampLTE": "2026-04-27 23:59:59"
+}
+```
+
+注意：
+
+`POST /api/so` 的 Request Body 必須和剛才產生 sign 時使用的 body 完全一致。
+
+如果 body、appid、timestamp、secretKey 任一個值不同，sign 都會驗證失敗。
+
+---
+
+## 4. 成功回應
+
+如果 sign 正確，會回傳：
+
+```json
+{
+  "Message": "Success",
+  "Status": 200,
+  "Data": [
+    {
+      "TransactionID": "xxxx",
+      "POSAppleID": "POS001",
+      "InvoiceNumber": "INV202604270001",
+      "TransationTS": "2026-04-27 10:30:00",
+      "MPNID": "MPN001",
+      "SerialNumber": "SN123456789",
+      "TransactionType": "Sale",
+      "UpdateTS": "2026-04-27 10:35:00",
+      "Comments": ""
+    }
+  ]
+}
+```
+
+---
+
+## 5. 失敗情況：Invalid sign
+
+如果 sign 不正確，會回傳：
+
+```json
+{
+  "Message": "Invalid sign",
+  "Status": 401,
+  "Data": []
+}
+```
+
+常見原因：
+
+- `sign` 不是用同一組 body 產生的
+- `dateTimestampGTE` 或 `dateTimestampLTE` 和產生 sign 時不同
+- `appid` 不一致
+- `timestamp` 不一致
+- `secretKey` 不一致
+- Swagger 預設 body 使用了 `"string"`，但 sign 是用正式日期產生的
+
+---
+
+## 6. 測試重點
+
+目前 sign 驗證流程如下：
+
+```text
+Client / Swagger
+→ 先呼叫 /api/debug/sign 產生 sign
+→ 再呼叫 /api/so
+→ Header 帶 appid / timestamp / sign
+→ 後端使用同一套規則重新計算 expectedSign
+→ 比對 expectedSign 和 receivedSign
+→ 相同則回 200 Success
+→ 不同則回 401 Invalid sign
+```
+
+---
+
+## 7. 注意事項
+
+`/api/debug/sign` 只供開發階段測試使用。
+
+正式環境不應該公開這支 API，避免外部使用者可以直接產生合法 sign。
+
 
 # 1. SO API 單支流程圖
 

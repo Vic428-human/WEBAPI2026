@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
-using WEBAPI2026.Helpers; // 剛才新增：引用 AuthHeaderHelper，用來檢查 appid / timestamp / sign
+using Microsoft.Extensions.Configuration; // 新增：用來讀取 appsettings.json 裡的 ApiAuth:SecretKey
+using WEBAPI2026.Helpers; // 使用 AuthHeaderHelper 做 Header + sign 驗證
 using WEBAPI2026.Models.Dtos;
 using WEBAPI2026.Models.Requests;
 using WEBAPI2026.Models.Responses;
@@ -11,34 +12,52 @@ namespace WEBAPI2026.Controllers
     // [ApiController] 代表這是一個 Web API Controller
     //
     // 用 React / Next.js 角度理解：
-    // 這個 class 就像一組 API route handler。
+    // 這個 class 就像一個 API route handler。
     //
     // 例如：
     // Next.js: app/api/so/route.ts
-    // ASP.NET Core: SalesOrderController.cs
+    // ASP.NET Core: Controllers/SalesOrderController.cs
     [ApiController]
 
     // [Route("api/so")] 代表這支 API 的路徑是 /api/so
     //
-    // 所以外部系統會這樣呼叫：
+    // 外部系統會這樣呼叫：
     // POST https://localhost:xxxx/api/so
     [Route("api/so")]
 
-    // 告訴 Swagger / 外部使用者：
-    // 這支 API 回傳格式是 application/json。
-    //
-    // 用 React 角度理解：
-    // 這就像告訴前端：
-    // response 的 Content-Type 是 application/json。
+    // 告訴 Swagger / 外部呼叫者：
+    // 這支 API 回傳的是 application/json。
     [Produces("application/json")]
     public class SalesOrderController : ControllerBase
     {
+        // 新增：用來讀取 appsettings.json 裡面的設定
+        //
+        // 用 React 角度理解：
+        // 這有點像在後端讀取環境設定，例如：
+        //
+        // process.env.API_SECRET_KEY
+        //
+        // 只是目前 ASP.NET Core 是從 appsettings.json 讀：
+        //
+        // ApiAuth:SecretKey
+        private readonly IConfiguration _configuration;
+
+        // 新增：透過 constructor injection 取得 IConfiguration
+        //
+        // ASP.NET Core 會自動把 IConfiguration 傳進來。
+        //
+        // 用 React 角度理解：
+        // 比較像框架自動把全域設定注入到這個 API handler 裡。
+        public SalesOrderController(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         // [HttpPost] 代表這個 method 只接受 POST
         //
         // 文件要求所有 API 統一使用 POST，不使用 GET。
         //
-        // 用 React 角度理解：
-        // 你前端會這樣呼叫：
+        // 用 React / axios 角度理解：
         //
         // await axios.post(
         //   "/api/so",
@@ -50,7 +69,7 @@ namespace WEBAPI2026.Controllers
         //     headers: {
         //       appid: "test-app",
         //       timestamp: "1538207443910",
-        //       sign: "test-sign"
+        //       sign: "正確的MD5簽名"
         //     }
         //   }
         // );
@@ -58,54 +77,75 @@ namespace WEBAPI2026.Controllers
         public ActionResult<ApiResponse<SalesOrderDto>> GetSalesOrders(
             [FromBody] DateRangeRequest request,
 
-            // 剛才修改：新增 [FromHeader(Name = "appid")] string appid
+            // 從 HTTP Header 讀取 appid
             //
             // 用 React 角度理解：
-            // 這是從 request headers 裡面讀取 appid。
-            //
-            // 類似前端送：
+            // 對方送：
             //
             // headers: {
             //   appid: "test-app"
             // }
             //
-            // 後端這裡就可以用 appid 這個變數拿到它。
+            // 後端這裡就會收到 appid 這個變數。
             [FromHeader(Name = "appid")] string appid,
 
-            // 剛才修改：新增 [FromHeader(Name = "timestamp")] string timestamp
+            // 從 HTTP Header 讀取 timestamp
             //
-            // 文檔要求 timestamp 是 13 位 millisecond UNIX timestamp。
+            // 文件要求 timestamp 是 13 位 millisecond UNIX timestamp。
             //
-            // 用 React 角度理解：
-            // 這也是從 request headers 讀取的值。
+            // 例如：
+            // 1538207443910
             [FromHeader(Name = "timestamp")] string timestamp,
 
-            // 剛才修改：新增 [FromHeader(Name = "sign")] string sign
+            // 從 HTTP Header 讀取 sign
             //
-            // sign 是外部系統根據 body + appid + timestamp + secretKey
-            // 產生出來的簽名值。
+            // 這個 sign 是對方根據：
+            // request body + appid + timestamp + secretKey
             //
-            // 目前這一階段只先檢查有沒有傳 sign。
-            // 下一階段才會真的做 MD5 簽名比對。
+            // 依照文件規則產生的 MD5 簽名。
+            //
+            // 後端稍後會用 SignatureHelper 重新算一次，
+            // 看對方傳來的 sign 是否正確。
             [FromHeader(Name = "sign")] string sign)
         {
-            // 剛才新增：先檢查 Header 認證資料
+            // 新增：從 appsettings.json 讀取 secretKey
+            //
+            // appsettings.json 需要有：
+            //
+            // "ApiAuth": {
+            //   "SecretKey": "test-secret-key"
+            // }
+            //
+            // 用 React 角度理解：
+            // 這類似 process.env.API_SECRET_KEY。
+            string secretKey = _configuration["ApiAuth:SecretKey"];
+
+            // 修改重點：
+            // 這裡不再只是檢查 appid / timestamp / sign 有沒有傳。
+            //
+            // 原本是：
+            // AuthHeaderHelper.TryValidateRequiredHeaders(...)
+            //
+            // 現在改成：
+            // AuthHeaderHelper.TryValidateRequiredHeadersAndSign(...)
+            //
+            // 也就是：
+            // 1. 檢查 appid 是否存在
+            // 2. 檢查 timestamp 是否存在
+            // 3. 檢查 timestamp 是否為 13 位數字
+            // 4. 檢查 sign 是否存在
+            // 5. 使用 secretKey 驗證 sign 是否真的正確
             //
             // 用 React / Next.js route handler 角度理解：
-            // 這就像 API route 一進來，先檢查 request.headers。
-            //
-            // 如果 appid / timestamp / sign 不完整，
-            // 就直接 return 401，不繼續處理 request body。
-            //
-            // 目前這裡呼叫的是：
-            // Helpers/AuthHeaderHelper.cs
-            //
-            // 它負責檢查：
-            // 1. appid 是否存在
-            // 2. timestamp 是否存在
-            // 3. timestamp 是否為 13 位數字
-            // 4. sign 是否存在
-            if (!AuthHeaderHelper.TryValidateRequiredHeaders(appid, timestamp, sign, out string authErrorMessage))
+            // API 一進來，先做 auth guard。
+            // 如果 header 或 sign 不正確，就直接 return 401。
+            if (!AuthHeaderHelper.TryValidateRequiredHeadersAndSign(
+                request,
+                appid,
+                timestamp,
+                sign,
+                secretKey,
+                out string authErrorMessage))
             {
                 return Unauthorized(new ApiResponse<SalesOrderDto>
                 {
@@ -116,10 +156,11 @@ namespace WEBAPI2026.Controllers
             }
 
             // [FromBody] 的意思是：
-            // 從 HTTP request body 讀 JSON，然後轉成 DateRangeRequest 物件。
+            // 從 HTTP request body 讀 JSON，
+            // 然後轉成 DateRangeRequest 物件。
             //
             // 用 React 角度理解：
-            // 前端送出的 payload：
+            // 對方送出的 payload：
             //
             // {
             //   "dateTimestampGTE": "2026-04-27 00:00:00",
@@ -137,7 +178,7 @@ namespace WEBAPI2026.Controllers
             // dateTimestampGTE 是必填
             // dateTimestampLTE 是選填
             //
-            // 所以如果沒有傳起始時間，我們直接回 400 Bad Request。
+            // 如果沒有傳起始時間，回傳 400 Bad Request。
             if (request == null || string.IsNullOrWhiteSpace(request.DateTimestampGTE))
             {
                 return BadRequest(new ApiResponse<SalesOrderDto>
@@ -148,17 +189,16 @@ namespace WEBAPI2026.Controllers
                 });
             }
 
-            // 這裡先建立假資料。
+            // 目前先建立假資料。
             //
-            // 目前第一階段目的不是接資料庫，
-            // 而是先確認：
+            // 現階段目的：
+            // 1. 確認 /api/so 可以被 Swagger 找到
+            // 2. 確認 request body 可以被接住
+            // 3. 確認 header 可以被接住
+            // 4. 確認 sign 驗證流程有接上
+            // 5. 確認 response 格式符合文件
             //
-            // 1. /api/so 可以被 Swagger 找到
-            // 2. POST request body 可以被接住
-            // 3. Header appid / timestamp / sign 可以被接住
-            // 4. Response 格式符合文件
-            //
-            // 後面接 SQL Server 時，
+            // 之後接 SQL Server 時，
             // 這段 data 會改成從 Repository 查回來的資料。
             var data = new List<SalesOrderDto>
             {
@@ -178,7 +218,7 @@ namespace WEBAPI2026.Controllers
                     //
                     // 注意：
                     // 文件欄位名稱是 TransationTS，
-                    // 看起來像拼字錯誤，但第一版先照文件。
+                    // 看起來像拼字錯誤，但目前先照文件。
                     TransationTS = "2026-04-27 10:30:00",
 
                     // 商品料號
@@ -192,7 +232,7 @@ namespace WEBAPI2026.Controllers
                     TransactionType = "Sale",
 
                     // 資料更新時間
-                    // 後面會用這個欄位做增量資料查詢
+                    // 之後正式接資料庫時，會用這個欄位做增量資料查詢。
                     UpdateTS = "2026-04-27 10:35:00",
 
                     // 備註
@@ -211,7 +251,9 @@ namespace WEBAPI2026.Controllers
             // }
             //
             // 用 React 角度理解：
-            // 前端收到 response 後會從 response.data.Data 取得真正資料陣列。
+            // 前端或外部系統真正要處理的資料會在：
+            //
+            // response.Data
             return Ok(new ApiResponse<SalesOrderDto>
             {
                 Message = "Success",
@@ -221,3 +263,10 @@ namespace WEBAPI2026.Controllers
         }
     }
 }
+
+
+/*
+ appid: test-app
+timestamp: 1538207443910
+sign:test-sign
+ */

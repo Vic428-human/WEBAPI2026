@@ -95,7 +95,24 @@ namespace WEBAPI2026.Helpers
             string appid,
             string timestamp,
             string secretKey,
-            string receivedSign)
+            string receivedSign) // 在這種 signature 認證流程裡，「對方」也會有一份同樣的簽名規則，而且他們手上也會有我們/系統事先發給他的 secretKey
+        /*
+            [FromHeader(Name = "sign")] string sign)
+            這裡的：string sign，就是前面說的：receivedSign
+            對方準備 request body
+            ↓
+            對方準備 appid
+            ↓
+            對方產生 timestamp
+            ↓
+            對方用 body + appid + timestamp + secretKey
+            ↓
+            依照文檔規則算出 MD5 sign
+            ↓
+            把 sign 放進 header
+            ↓
+            送 request 給我們後端
+         */
         {
             // 如果 header 沒有 sign，直接失敗。
             if (string.IsNullOrWhiteSpace(receivedSign))
@@ -108,8 +125,7 @@ namespace WEBAPI2026.Helpers
 
             // 比對外部傳進來的 sign 和後端算出來的 sign。
             //
-            // StringComparison.OrdinalIgnoreCase：
-            // 代表大小寫不同也視為相同。
+            // expectedSign 是後端自己重新計算出來的「正確答案」
             return string.Equals(expectedSign, receivedSign, StringComparison.OrdinalIgnoreCase);
         }
 
