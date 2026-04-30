@@ -21,10 +21,11 @@
 ### API
 
 ```http
-POST /api/debug/sign
+POST 
+
 ```
 
-### Request Body
+### Request Body /api/debug/sign
 
 ```json
 {

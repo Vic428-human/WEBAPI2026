@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration; // 新增：用來讀取 appsettings.json 裡的 ApiAuth:SecretKey
+using WEBAPI2026.Helpers; // 新增：使用 AuthHeaderHelper 做 Header + sign 驗證
 using WEBAPI2026.Models.Dtos;
 using WEBAPI2026.Models.Requests;
 using WEBAPI2026.Models.Responses;
@@ -9,65 +11,143 @@ namespace WEBAPI2026.Controllers
     // [ApiController] 代表這是一個 Web API Controller
     //
     // 用 React / Next.js 角度理解：
-    // 這個 class 很像一個 API route handler。
+    // 這個 class 就像 app/api/inventory/route.ts。
     //
-    // 例如：
-    // Next.js: app/api/inventory/route.ts
-    // ASP.NET Core: Controllers/InventoryController.cs
+    // 它負責處理 POST /api/inventory 這支 API。
     [ApiController]
 
-    // [Route("api/inventory")] 代表這支 API 的 URL 是 /api/inventory
+    // [Route("api/inventory")] 代表這支 API 的路徑是 /api/inventory
     //
-    // 外部系統或 Swagger 會這樣呼叫：
+    // 外部系統會這樣呼叫：
     // POST https://localhost:xxxx/api/inventory
     [Route("api/inventory")]
 
     // 告訴 Swagger / 外部呼叫者：
-    // 這支 API 回傳的是 JSON。
-    //
-    // 用 React 角度理解：
-    // 這就像 fetch / axios 收到的 response content-type 是 application/json。
+    // 這支 API 回傳的是 application/json。
     [Produces("application/json")]
     public class InventoryController : ControllerBase
     {
-        // [HttpPost] 代表這個 method 只接受 POST
-        //
-        // 文檔要求所有 API 統一使用 POST，不使用 GET。
+        // 新增：用來讀取 appsettings.json 裡面的設定
         //
         // 用 React 角度理解：
-        // 前端或外部系統會這樣呼叫：
+        // 類似 process.env.API_SECRET_KEY。
         //
-        // await axios.post("/api/inventory", {
-        //   dateTimestampGTE: "2026-04-27 00:00:00",
-        //   dateTimestampLTE: "2026-04-27 23:59:59"
-        // });
-        [HttpPost]
-        public ActionResult<ApiResponse<InventoryDto>> GetInventory([FromBody] DateRangeRequest request)
+        // 這裡會讀：
+        // ApiAuth:SecretKey
+        private readonly IConfiguration _configuration;
+
+        // 新增：透過 constructor injection 取得 IConfiguration
+        //
+        // ASP.NET Core 會自動把 IConfiguration 傳進來。
+        public InventoryController(IConfiguration configuration)
         {
-            // [FromBody] 的意思是：
-            // 從 HTTP request body 讀取 JSON，
-            // 然後自動轉成 DateRangeRequest 物件。
+            _configuration = configuration;
+        }
+
+        // [HttpPost] 代表這個 method 只接受 POST
+        //
+        // 文件要求所有 API 統一使用 POST，不使用 GET。
+        //
+        // 用 React / axios 角度理解：
+        //
+        // await axios.post(
+        //   "/api/inventory",
+        //   {
+        //     dateTimestampGTE: "2026-04-27 00:00:00",
+        //     dateTimestampLTE: "2026-04-27 23:59:59"
+        //   },
+        //   {
+        //     headers: {
+        //       appid: "test-app",
+        //       timestamp: "1538207443910",
+        //       sign: "正確的MD5簽名"
+        //     }
+        //   }
+        // );
+        [HttpPost]
+        public ActionResult<ApiResponse<InventoryDto>> GetInventory(
+            [FromBody] DateRangeRequest request,
+
+            // 新增：從 HTTP Header 讀取 appid
             //
             // 用 React 角度理解：
-            // 外部送進來的 payload：
+            // 對方送 headers.appid，
+            // 後端這裡用 appid 變數接住。
+            [FromHeader(Name = "appid")] string appid,
+
+            // 新增：從 HTTP Header 讀取 timestamp
+            //
+            // 文件要求 timestamp 是 13 位 millisecond UNIX timestamp。
+            [FromHeader(Name = "timestamp")] string timestamp,
+
+            // 新增：從 HTTP Header 讀取 sign
+            //
+            // 這是對方根據：
+            // request body + appid + timestamp + secretKey
+            // 算出來的 MD5 簽名。
+            [FromHeader(Name = "sign")] string sign)
+        {
+            // 新增：從 appsettings.json 讀取 secretKey
+            //
+            // appsettings.json 需要有：
+            //
+            // "ApiAuth": {
+            //   "SecretKey": "test-secret-key"
+            // }
+            string secretKey = _configuration["ApiAuth:SecretKey"];
+
+            // 新增：Inventory API 也要做正式 sign 驗證
+            //
+            // 這裡和 SalesOrderController.cs 的邏輯一致：
+            //
+            // 1. 檢查 appid 是否存在
+            // 2. 檢查 timestamp 是否存在
+            // 3. 檢查 timestamp 是否為 13 位數字
+            // 4. 檢查 sign 是否存在
+            // 5. 用 SignatureHelper 重新計算 expectedSign
+            // 6. 比對 expectedSign 和對方 header 傳來的 sign
+            //
+            // 如果不通過，直接回 401。
+            if (!AuthHeaderHelper.TryValidateRequiredHeadersAndSign(
+                request,
+                appid,
+                timestamp,
+                sign,
+                secretKey,
+                out string authErrorMessage))
+            {
+                return Unauthorized(new ApiResponse<InventoryDto>
+                {
+                    Message = authErrorMessage,
+                    Status = 401,
+                    Data = new List<InventoryDto>()
+                });
+            }
+
+            // [FromBody] 的意思是：
+            // 從 HTTP request body 讀 JSON，
+            // 然後轉成 DateRangeRequest 物件。
+            //
+            // 用 React 角度理解：
+            // 對方送出的 payload：
             //
             // {
             //   "dateTimestampGTE": "2026-04-27 00:00:00",
             //   "dateTimestampLTE": "2026-04-27 23:59:59"
             // }
             //
-            // 會變成後端 C# 裡的：
+            // 會被 ASP.NET Core 轉成：
             //
             // request.DateTimestampGTE
             // request.DateTimestampLTE
 
             // 檢查必填欄位 dateTimestampGTE
             //
-            // 文檔規定：
+            // 文件規定：
             // dateTimestampGTE 是必填
             // dateTimestampLTE 是選填
             //
-            // 所以如果沒有起始時間，就回傳 400 BadRequest。
+            // 如果沒有傳起始時間，回傳 400 Bad Request。
             if (request == null || string.IsNullOrWhiteSpace(request.DateTimestampGTE))
             {
                 return BadRequest(new ApiResponse<InventoryDto>
@@ -78,28 +158,29 @@ namespace WEBAPI2026.Controllers
                 });
             }
 
-            // 這裡先建立假資料。
+            // 目前先建立假資料。
             //
-            // 目前第一階段目的不是接資料庫，
-            // 而是先確認：
+            // 現階段目的：
+            // 1. 確認 /api/inventory 可以被 Swagger 找到
+            // 2. 確認 request body 可以被接住
+            // 3. 確認 header 可以被接住
+            // 4. 確認 sign 驗證流程有接上
+            // 5. 確認 response 格式符合文件
             //
-            // 1. /api/inventory 可以被 Swagger 找到
-            // 2. Request body 格式正確
-            // 3. Response body 格式符合文檔
-            // 4. Inventory 的 Data 欄位符合文檔要求
-            //
-            // 後面接 SQL Server 時，
-            // 這段 data 會改成從 Repository 查回來的資料。
+            // 之後接 SQL Server 時，
+            // 這段 data 會改成從 Repository 查回來的庫存資料。
             var data = new List<InventoryDto>
             {
                 new InventoryDto
                 {
                     // POS Apple ID
-                    // 代表是哪一個銷售點 / reseller 的庫存資料
+                    // 代表是哪一個銷售點 / reseller 的庫存資料。
                     POSAppleID = "POS001",
 
                     // 庫存日期
-                    // 文檔要求格式是 YYYY-MM-DD
+                    //
+                    // 文件要求格式：
+                    // YYYY-MM-DD
                     Date = "2026-04-27",
 
                     // 商品料號
@@ -109,24 +190,22 @@ namespace WEBAPI2026.Controllers
                     Qty = 100,
 
                     // 資料更新時間
-                    // 後面正式查資料時，會用這個時間做增量查詢
+                    //
+                    // 之後正式接資料庫時，
+                    // 會用這個欄位做增量資料查詢。
                     UpdateTS = "2026-04-27 10:35:00"
                 }
             };
 
             // 回傳成功格式
             //
-            // 文檔要求 response body 統一是：
+            // 文件要求 response body 統一是：
             //
             // {
             //   "Message": "Success",
             //   "Status": 200,
             //   "Data": [...]
             // }
-            //
-            // 用 React 角度理解：
-            // 前端收到 response 後，
-            // 真正要 render 的資料會在 response.data.Data 裡面。
             return Ok(new ApiResponse<InventoryDto>
             {
                 Message = "Success",
@@ -137,25 +216,23 @@ namespace WEBAPI2026.Controllers
     }
 }
 
-
-// 這一步是在新增 Inventory API 的入口 POST /api/inventory，讓外部系統可以依照文件格式，用時間範圍「查詢庫存」資料並收到統一格式的 JSON 回應。
-
 /*
- 文檔裡有明確寫到需要做庫存 API，位置在：
-6.2 獲取庫存表單數據（Inventory API）
-6.2.1 業務說明：取得每日庫存資料
+/api/inventory 執行之前，要先在 /api/debug/sign 確定有拿到 sign
 
-文檔不是只要求 SO 銷售資料，還另外要求一支 Inventory API，用途是「取得每日庫存資料」
- */
+Headers 填：
+ appid: test-app
+timestamp: 1538207443910
+sign: 剛才 debug API 產生的 Sign
+Content-Type: application/json
+Accept: application/json
 
-/* 用這個 body 測試：
- {
+Body 必須和剛才產生 sign 時一致：
+{
   "dateTimestampGTE": "2026-04-27 00:00:00",
   "dateTimestampLTE": "2026-04-27 23:59:59"
 }
- */
 
-/* 預期 response 會類似:
+成功時預期會回：
 {
   "Message": "Success",
   "Status": 200,
