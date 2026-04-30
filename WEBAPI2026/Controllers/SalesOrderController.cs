@@ -6,6 +6,7 @@ using WEBAPI2026.Helpers; // 使用 AuthHeaderHelper 做 Header + sign 驗證
 using WEBAPI2026.Models.Dtos;
 using WEBAPI2026.Models.Requests;
 using WEBAPI2026.Models.Responses;
+using WEBAPI2026.Services;
 
 namespace WEBAPI2026.Controllers
 {
@@ -31,28 +32,20 @@ namespace WEBAPI2026.Controllers
     public class SalesOrderController : ControllerBase
     {
         // 新增：用來讀取 appsettings.json 裡面的設定
-        //
-        // 用 React 角度理解：
-        // 這有點像在後端讀取環境設定，例如：
-        //
-        // process.env.API_SECRET_KEY
-        //
-        // 只是目前 ASP.NET Core 是從 appsettings.json 讀：
-        //
         // ApiAuth:SecretKey
         private readonly IConfiguration _configuration;
+        private readonly SalesOrderService _salesOrderService;
 
-        // 新增：透過 constructor injection 取得 IConfiguration
-        //
+        // 新增：透過 constructor injection 取得 IConfiguration 跟 SalesOrderService
         // ASP.NET Core 會自動把 IConfiguration 傳進來。
-        //
-        // 用 React 角度理解：
-        // 比較像框架自動把全域設定注入到這個 API handler 裡。
-        public SalesOrderController(IConfiguration configuration)
+        // 用 React 角度理解：比較像框架自動把全域設定注入到這個 API handler 裡。
+        public SalesOrderController(
+        IConfiguration configuration,
+        SalesOrderService salesOrderService)
         {
             _configuration = configuration;
+            _salesOrderService = salesOrderService;
         }
-
         // [HttpPost] 代表這個 method 只接受 POST
         //
         // 文件要求所有 API 統一使用 POST，不使用 GET。
@@ -190,55 +183,15 @@ namespace WEBAPI2026.Controllers
             }
 
             // 目前先建立假資料。
+            // 修改：資料取得邏輯改交給 SalesOrderService
             //
-            // 現階段目的：
-            // 1. 確認 /api/so 可以被 Swagger 找到
-            // 2. 確認 request body 可以被接住
-            // 3. 確認 header 可以被接住
-            // 4. 確認 sign 驗證流程有接上
-            // 5. 確認 response 格式符合文件
+            // 原本 Controller 自己建立 mock data。
+            // 現在改成呼叫 Service。
             //
-            // 之後接 SQL Server 時，
-            // 這段 data 會改成從 Repository 查回來的資料。
-            var data = new List<SalesOrderDto>
-            {
-                new SalesOrderDto
-                {
-                    // 唯一交易識別碼
-                    // 類似 React list render 時會用的 key / id
-                    TransactionID = Guid.NewGuid().ToString(),
-
-                    // POS Apple ID
-                    POSAppleID = "POS001",
-
-                    // 發票號碼
-                    InvoiceNumber = "INV202604270001",
-
-                    // 交易時間
-                    //
-                    // 注意：
-                    // 文件欄位名稱是 TransationTS，
-                    // 看起來像拼字錯誤，但目前先照文件。
-                    TransationTS = "2026-04-27 10:30:00",
-
-                    // 商品料號
-                    MPNID = "MPN001",
-
-                    // 商品序號
-                    SerialNumber = "SN123456789",
-
-                    // 交易類型
-                    // 文件提到可能是 Sale / Return
-                    TransactionType = "Sale",
-
-                    // 資料更新時間
-                    // 之後正式接資料庫時，會用這個欄位做增量資料查詢。
-                    UpdateTS = "2026-04-27 10:35:00",
-
-                    // 備註
-                    Comments = ""
-                }
-            };
+            // 用 Go 角度理解：
+            // handler 不直接查資料，
+            // 而是呼叫 service.GetSalesOrders(...)。
+            var data = _salesOrderService.GetSalesOrders(request);
 
             // 回傳成功格式
             //

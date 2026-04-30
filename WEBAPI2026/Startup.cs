@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using WEBAPI2026.Services;
 
 namespace WEBAPI2026
 {
@@ -26,20 +27,14 @@ namespace WEBAPI2026
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+
+            // 註冊 SO 業務邏輯 Service
+            services.AddScoped<SalesOrderService>();
             
             services.AddControllers() // 這行會把你的 SalesOrderController.cs（或其他 Controller）註冊到 ASP.NET Core 的 Routing 系統。這樣 API 路由才能找到對應的 Controller 方法。
             .AddJsonOptions(options =>
             {
-                // 用 React 角度理解：
-                // ASP.NET Core 預設會把 C# 的 PascalCase 欄位轉成 camelCase。
-                //
-                // 例如：
-                // C#：Message
-                // JSON：message
-                //
-                // 但這次 API 文件要求 Response 欄位要保持：
-                // Message / Status / Data
-                //
+
                 // 所以這裡把 PropertyNamingPolicy 設成 null，
                 // 代表「不要幫我改欄位名稱，照 C# class 的屬性名稱輸出」。
                 options.JsonSerializerOptions.PropertyNamingPolicy = null;
