@@ -124,37 +124,27 @@ namespace WEBAPI2026.Controllers
                 });
             }
 
-            // [FromBody] 的意思是：
-            // 從 HTTP request body 讀 JSON，
-            // 然後轉成 DateRangeRequest 物件。
+            // 修改：改用 DateRangeValidator 統一驗證 request body
             //
-            // 用 React 角度理解：
-            // 對方送出的 payload：
+            // 原本这里只檢查 dateTimestampGTE 有沒有填。
+            // 現在改成統一檢查：
             //
-            // {
-            //   "dateTimestampGTE": "2026-04-27 00:00:00",
-            //   "dateTimestampLTE": "2026-04-27 23:59:59"
-            // }
+            // 1. request body 是否存在
+            // 2. dateTimestampGTE 是否必填
+            // 3. dateTimestampGTE 格式是否為 yyyy-MM-dd HH:mm:ss
+            // 4. dateTimestampLTE 如果有填，格式是否為 yyyy-MM-dd HH:mm:ss
+            // 5. dateTimestampGTE 是否晚於 dateTimestampLTE
             //
-            // 會被 ASP.NET Core 轉成：
-            //
-            // request.DateTimestampGTE
-            // request.DateTimestampLTE
-
-            // 檢查必填欄位 dateTimestampGTE
-            //
-            // 文件規定：
-            // dateTimestampGTE 是必填
-            // dateTimestampLTE 是選填
-            //
-            // 如果沒有傳起始時間，回傳 400 Bad Request。
-            if (request == null || string.IsNullOrWhiteSpace(request.DateTimestampGTE))
+            // 用 React 工程師角度理解：
+            // 這就像把 form validation 從 component 裡抽出去，
+            // 改成共用 validateDateRangeForm(values)。
+            if (!DateRangeValidator.TryValidate(request, out string dateRangeErrorMessage))
             {
-                return BadRequest(new ApiResponse<InventoryDto>
+                return BadRequest(new ApiResponse<SalesOrderDto>
                 {
-                    Message = "dateTimestampGTE is required",
+                    Message = dateRangeErrorMessage,
                     Status = 400,
-                    Data = new List<InventoryDto>()
+                    Data = new List<SalesOrderDto>()
                 });
             }
 

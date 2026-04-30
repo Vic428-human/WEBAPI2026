@@ -179,11 +179,11 @@ namespace WEBAPI2026.Controllers
             // dateTimestampLTE 是選填
             //
             // 如果沒有傳起始時間，回傳 400 Bad Request。
-            if (request == null || string.IsNullOrWhiteSpace(request.DateTimestampGTE))
+            if (!DateRangeValidator.TryValidate(request, out string dateRangeErrorMessage))
             {
                 return BadRequest(new ApiResponse<SalesOrderDto>
                 {
-                    Message = "dateTimestampGTE is required",
+                    Message = dateRangeErrorMessage,
                     Status = 400,
                     Data = new List<SalesOrderDto>()
                 });

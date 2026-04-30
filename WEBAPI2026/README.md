@@ -349,3 +349,18 @@ flowchart TD
     T[appsettings.json<br/>ApiAuth:SecretKey] -. 提供 secretKey .-> I
     T -. 提供 secretKey .-> J
 ```
+
+### 截至 0430 開始避免完全 Fat Controller 
+> 所以現在比較準確地說是，Controller 還偏厚，但核心驗證邏輯已經開始抽到 Helper。
+- Helpers/AuthHeaderHelper.cs → Header 與 sign 驗證流程
+- Helpers/SignatureHelper.cs → MD5 sign 產生與比對
++ Helpers/DateRangeValidator.cs → 日期格式驗證
+
+|  Go 架構       | 目前 C# 對應位置                                                                 | 責任                                      | 目前狀態       |
+| ---------------- | -------------------------------------------------------------------------- | --------------------------------------- | ---------- |
+| `handler`        | `Controllers/SalesOrderController.cs`、`Controllers/InventoryController.cs` | 接 HTTP request、讀 body/header、回 response | ✅ 已有，但目前偏厚 |
+| `model / dto`    | `Models/Requests`、`Models/Dtos`、`Models/Responses`                         | 定義 request、response、資料格式                | ✅ 已有       |
+| `repository`     | 未建立，未來可放 `Repositories/`                                                   | 負責查資料庫，例如 SQL Server / PostgreSQL       | ❌ 尚未做      |
+| `service`        | 未建立，未來可放 `Services/`                                                       | 放業務邏輯，例如查詢 SO / Inventory、組 response    | ❌ 尚未做      |
+| `helper / utils` | `Helpers/AuthHeaderHelper.cs`、`SignatureHelper.cs`、`DateRangeValidator.cs` | 共用工具，例如驗證、簽名、日期格式                       | ✅ 已有       |
+| `config`         | `appsettings.json` + `IConfiguration`                                      | 放設定，例如 `SecretKey`、DB connection string | ✅ 已開始使用    |
