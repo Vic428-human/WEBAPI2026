@@ -5,6 +5,7 @@ using WEBAPI2026.Helpers; // 新增：使用 AuthHeaderHelper 做 Header + sign 
 using WEBAPI2026.Models.Dtos;
 using WEBAPI2026.Models.Requests;
 using WEBAPI2026.Models.Responses;
+using WEBAPI2026.Services;
 
 namespace WEBAPI2026.Controllers
 {
@@ -27,21 +28,19 @@ namespace WEBAPI2026.Controllers
     [Produces("application/json")]
     public class InventoryController : ControllerBase
     {
-        // 新增：用來讀取 appsettings.json 裡面的設定
-        //
-        // 用 React 角度理解：
-        // 類似 process.env.API_SECRET_KEY。
-        //
-        // 這裡會讀：
-        // ApiAuth:SecretKey
+        // 用來讀取 appsettings.json 裡面的設定
+        // 這裡會讀： ApiAuth:SecretKey
         private readonly IConfiguration _configuration;
+        private readonly InventoryService _inventoryService;
 
-        // 新增：透過 constructor injection 取得 IConfiguration
-        //
-        // ASP.NET Core 會自動把 IConfiguration 傳進來。
-        public InventoryController(IConfiguration configuration)
+        // 透過 constructor injection 取得 IConfiguration 、 InventoryService
+        // ASP.NET Core 會自動把 IConfiguration 、 InventoryService傳進來。
+        public InventoryController(
+            IConfiguration configuration,
+            InventoryService inventoryService)
         {
             _configuration = configuration;
+            _inventoryService = inventoryService;
         }
 
         // [HttpPost] 代表這個 method 只接受 POST
@@ -148,44 +147,15 @@ namespace WEBAPI2026.Controllers
                 });
             }
 
-            // 目前先建立假資料。
+            // 修改：資料取得邏輯改交給 InventoryService
             //
-            // 現階段目的：
-            // 1. 確認 /api/inventory 可以被 Swagger 找到
-            // 2. 確認 request body 可以被接住
-            // 3. 確認 header 可以被接住
-            // 4. 確認 sign 驗證流程有接上
-            // 5. 確認 response 格式符合文件
+            // 原本 Controller 自己建立 mock data。
+            // 現在改成呼叫 Service。
             //
-            // 之後接 SQL Server 時，
-            // 這段 data 會改成從 Repository 查回來的庫存資料。
-            var data = new List<InventoryDto>
-            {
-                new InventoryDto
-                {
-                    // POS Apple ID
-                    // 代表是哪一個銷售點 / reseller 的庫存資料。
-                    POSAppleID = "POS001",
-
-                    // 庫存日期
-                    //
-                    // 文件要求格式：
-                    // YYYY-MM-DD
-                    Date = "2026-04-27",
-
-                    // 商品料號
-                    MPNID = "MPN001",
-
-                    // 庫存數量
-                    Qty = 100,
-
-                    // 資料更新時間
-                    //
-                    // 之後正式接資料庫時，
-                    // 會用這個欄位做增量資料查詢。
-                    UpdateTS = "2026-04-27 10:35:00"
-                }
-            };
+            // 用 Go 角度理解：
+            // handler 不直接查資料，
+            // 而是呼叫 service.GetInventory(...)。
+            var data = _inventoryService.GetInventory(request);
 
             // 回傳成功格式
             //

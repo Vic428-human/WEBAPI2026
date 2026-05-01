@@ -30,13 +30,15 @@ namespace WEBAPI2026
 
             // 註冊 SO 業務邏輯 Service
             services.AddScoped<SalesOrderService>();
-            
-            services.AddControllers() // 這行會把你的 SalesOrderController.cs（或其他 Controller）註冊到 ASP.NET Core 的 Routing 系統。這樣 API 路由才能找到對應的 Controller 方法。
+            // 註冊 Inventory 業務邏輯 Service
+            services.AddScoped<InventoryService>();
+
+
+            services.AddControllers() // 這行會把你的Controller註冊到 ASP.NET Core 的 Routing 系統，這樣 API 路由才能找到對應的 Controller 方法。
             .AddJsonOptions(options =>
             {
 
-                // 所以這裡把 PropertyNamingPolicy 設成 null，
-                // 代表「不要幫我改欄位名稱，照 C# class 的屬性名稱輸出」。
+                // 代表不要幫我改欄位名稱，照 C# class 的屬性名稱輸出
                 options.JsonSerializerOptions.PropertyNamingPolicy = null;
             });
 
