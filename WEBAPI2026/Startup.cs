@@ -12,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using WEBAPI2026.Services;
+using WEBAPI2026.Repositories;
 
 namespace WEBAPI2026
 {
@@ -27,7 +28,8 @@ namespace WEBAPI2026
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-
+            // µù¥U Repository
+            services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
             // µù¥U SO ·~°ÈÅÞ¿è Service
             services.AddScoped<SalesOrderService>();
             // µù¥U Inventory ·~°ÈÅÞ¿è Service
