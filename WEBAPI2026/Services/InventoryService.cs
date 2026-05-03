@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using WEBAPI2026.Models.Dtos;
 using WEBAPI2026.Models.Requests;
+using WEBAPI2026.Repositories;
 
 namespace WEBAPI2026.Services
 {
@@ -8,71 +9,54 @@ namespace WEBAPI2026.Services
     //
     // 用 React / Go 角度理解：
     //
-    // Controller 很像 route handler / handler
-    // Service 則是把資料處理邏輯抽出去的 service layer
+    // Controller / Handler：
+    // - 接 request
+    // - 驗證 header
+    // - 驗證 body
+    // - 回 response
     //
-    // 原本 InventoryController 裡面直接建立假資料，
-    // 現在把這段搬到 Service。
+    // Service：
+    // - 處理業務流程
+    // - 決定要去哪裡拿資料
     //
-    // 之後接資料庫時，Controller 不需要大改，
-    // 只要讓 Service 去呼叫 Repository 即可。
+    // Repository：
+    // - 真正負責資料來源
+    //
+    // 目前流程：
+    // InventoryController
+    // → InventoryService
+    // → IInventoryRepository
+    // → InventoryRepository
     public class InventoryService
     {
+        // 透過介面依賴 Repository
+        //
+        // 用 React / Go 角度理解：
+        // Service 不直接 new Repository，
+        // 而是透過 constructor injection 接收 Repository。
+        //
+        // 這樣未來 Repository 從 mock data 改成 Oracle 查詢時，
+        // Service 不需要大改。
+        private readonly IInventoryRepository _inventoryRepository;
+
+        public InventoryService(IInventoryRepository inventoryRepository)
+        {
+            _inventoryRepository = inventoryRepository;
+        }
+
         // GetInventory 負責取得庫存資料
         //
-        // 目前第一版仍然回傳 mock data。
+        // 目前只是轉交給 Repository。
         //
-        // 之後會改成：
+        // 未來如果有業務邏輯，例如：
+        // - 權限判斷
+        // - 資料轉換
+        // - 特殊篩選
         //
-        // InventoryService
-        // → InventoryRepository
-        // → SQL Server
-        //
-        // 用 React 角度理解：
-        // 這有點像把 mock inventory list
-        // 從 route handler 抽成一個 fetchInventory() function。
+        // 可以放在 Service。
         public List<InventoryDto> GetInventory(DateRangeRequest request)
         {
-            // 目前先保留假資料。
-            //
-            // 注意：
-            // request 目前還沒有真的拿來查資料，
-            // 因為資料庫尚未接上。
-            //
-            // 之後接 DB 時，會使用：
-            // request.DateTimestampGTE
-            // request.DateTimestampLTE
-            //
-            // 作為查詢條件。
-            var data = new List<InventoryDto>
-            {
-                new InventoryDto
-                {
-                    // POS Apple ID
-                    // 代表是哪一個銷售點 / reseller 的庫存資料。
-                    POSAppleID = "POS001",
-
-                    // 庫存日期
-                    //
-                    // 文件要求格式：
-                    // YYYY-MM-DD
-                    Date = "2026-04-27",
-
-                    // 商品料號
-                    MPNID = "MPN001",
-
-                    // 庫存數量
-                    Qty = 100,
-
-                    // 資料更新時間
-                    //
-                    // 之後正式接資料庫時，
-                    // 會用這個欄位做增量資料查詢。
-                    UpdateTS = "2026-04-27 10:35:00"
-                }
-            };
-
-            return data;
+            return _inventoryRepository.GetInventory(request);
         }
     }
 }

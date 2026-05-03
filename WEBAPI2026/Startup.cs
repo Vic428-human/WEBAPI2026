@@ -29,10 +29,11 @@ namespace WEBAPI2026
         public void ConfigureServices(IServiceCollection services)
         {
             // µù¥U Repository
+            services.AddScoped<IInventoryRepository, InventoryRepository>();
             services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
-            // µù¥U SO ·~°ÈÅÞ¿è Service
+
+            // µù¥U Service
             services.AddScoped<SalesOrderService>();
-            // µù¥U Inventory ·~°ÈÅÞ¿è Service
             services.AddScoped<InventoryService>();
 
 
