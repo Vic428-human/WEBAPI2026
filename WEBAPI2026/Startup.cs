@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -11,8 +7,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
-using WEBAPI2026.Services;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using WEBAPI2026.Data;
 using WEBAPI2026.Repositories;
+using WEBAPI2026.Services;
 
 namespace WEBAPI2026
 {
@@ -28,6 +29,9 @@ namespace WEBAPI2026
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            // µù¥U Oracle connection factory
+            services.AddScoped<OracleConnectionFactory>();
+
             // µù¥U Repository
             services.AddScoped<IInventoryRepository, InventoryRepository>();
             services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
