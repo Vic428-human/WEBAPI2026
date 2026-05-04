@@ -1,75 +1,103 @@
 ﻿using System;
-using System.Collections.Generic; // List<T> 屬於這個的 命名空間，如果不引用這個命名空間，編譯器就找不到 List<T>
+using System.Collections.Generic;
+using Oracle.ManagedDataAccess.Client;
+using WEBAPI2026.Data;
 using WEBAPI2026.Models.Dtos;
 using WEBAPI2026.Models.Requests;
-
 
 namespace WEBAPI2026.Repositories
 {
     // SalesOrderRepository 是「銷售資料來源層」
     //
-    // 用 React / Go 角度理解：
+    // Debug 版本：
+    // 這一版先不查 SYSTEM.SALES_ORDERS。
+    // 先用 Oracle 內建的 DUAL 表回傳一筆固定資料。
     //
-    // Controller 像 handler
-    // Service 像 business logic
-    // Repository 像專門負責拿資料的地方
-    //
-    // 目前這裡先回傳 mock data。
-    //
-    // 之後接 DB 時，
-    // 這個檔案會改成負責 SQL 查詢，
-    // 例如查 SQL Server / PostgreSQL。
+    // 用途：
+    // 確認 Web API 是否真的有走到 OracleConnection 和 reader mapping。
     public class SalesOrderRepository : ISalesOrderRepository
     {
-        // GetSalesOrders 目前先回傳假資料
-        //
-        // 未來接資料庫時，這裡會使用：
-        //
-        // request.DateTimestampGTE
-        // request.DateTimestampLTE
-        //
-        // 去查指定時間範圍內的 SO 資料。
+        private readonly OracleConnectionFactory _connectionFactory;
+
+        public SalesOrderRepository(OracleConnectionFactory connectionFactory)
+        {
+            _connectionFactory = connectionFactory;
+        }
+
         public List<SalesOrderDto> GetSalesOrders(DateRangeRequest request)
         {
-            var data = new List<SalesOrderDto>
+            var data = new List<SalesOrderDto>();
+
+            using (var connection = _connectionFactory.CreateConnection())
             {
-                new SalesOrderDto
+                connection.Open();
+
+                using (var command = connection.CreateCommand())
                 {
-                    // 唯一交易識別碼
-                    TransactionID = Guid.NewGuid().ToString(),
-
-                    // POS Apple ID
-                    POSAppleID = "POS001",
-
-                    // 發票號碼
-                    InvoiceNumber = "INV202604270001",
-
-                    // 交易時間
+                    // Debug SQL：
                     //
-                    // 注意：
-                    // 文檔欄位名稱是 TransationTS，
-                    // 目前先照文檔拼法。
-                    TransationTS = "2026-04-27 10:30:00",
+                    // 這裡不查 SALES_ORDERS，
+                    // 而是用 Oracle 內建 DUAL 表直接回傳一筆假資料。
+                    //
+                    // 如果 /api/so 可以看到 DEBUG_ROW，
+                    // 代表：
+                    // 1. OracleConnectionFactory 正常
+                    // 2. OracleConnection 正常
+                    // 3. Repository 有被呼叫
+                    // 4. reader mapping 正常
+                    //
+                    // 如果這樣還是 Data: []，
+                    // 就代表目前程式可能沒有跑到這份 Repository，
+                    // 或 IIS Express 還在跑舊版本。
+                    command.CommandText = @"
+                        SELECT
+                            TRANSACTION_ID,
+                            POS_APPLE_ID,
+                            INVOICE_NUMBER,
+                            TRANSATION_TS,
+                            MPN_ID,
+                            SERIAL_NUMBER,
+                            TRANSACTION_TYPE,
+                            UPDATE_TS,
+                            COMMENTS
+                        FROM SYSTEM.SALES_ORDERS
+                        ORDER BY UPDATE_TS
+                    ";
 
-                    // 商品料號
-                    MPNID = "MPN001",
-
-                    // 商品序號
-                    SerialNumber = "SN123456789",
-
-                    // 交易類型
-                    // 例如 Sale / Return
-                    TransactionType = "Sale",
-
-                    // 資料更新時間
-                    UpdateTS = "2026-04-27 10:35:00",
-
-                    // 備註
-                    Comments = ""
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            data.Add(new SalesOrderDto
+                            {
+                                TransactionID = reader["TRANSACTION_ID"]?.ToString(),
+                                POSAppleID = reader["POS_APPLE_ID"]?.ToString(),
+                                InvoiceNumber = reader["INVOICE_NUMBER"]?.ToString(),
+                                TransationTS = FormatOracleDate(reader["TRANSATION_TS"]),
+                                MPNID = reader["MPN_ID"]?.ToString(),
+                                SerialNumber = reader["SERIAL_NUMBER"]?.ToString(),
+                                TransactionType = reader["TRANSACTION_TYPE"]?.ToString(),
+                                UpdateTS = FormatOracleDate(reader["UPDATE_TS"]),
+                                Comments = reader["COMMENTS"]?.ToString()
+                            });
+                        }
+                    }
                 }
-            };
+            }
 
             return data;
+        }
+
+        private string FormatOracleDate(object value)
+        {
+            if (value == null || value == DBNull.Value)
+            {
+                return string.Empty;
+            }
+
+            var dateTime = Convert.ToDateTime(value);
+
+            return dateTime.ToString("yyyy-MM-dd HH:mm:ss");
         }
     }
 }
