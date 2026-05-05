@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Oracle.ManagedDataAccess.Client;
 using WEBAPI2026.Data;
 using WEBAPI2026.Models.Dtos;
@@ -28,41 +29,84 @@ namespace WEBAPI2026.Repositories
         {
             var data = new List<SalesOrderDto>();
 
+            // 將 request body 裡的 dateTimestampGTE 轉成 C# DateTime
+            //
+            // 用 React / JS 角度理解：
+            // 這有點像把字串 "2026-04-27 00:00:00"
+            // 轉成可以拿來比較時間的 Date object。
+            var startTime = DateTime.ParseExact(
+                request.DateTimestampGTE,
+                "yyyy-MM-dd HH:mm:ss",
+                CultureInfo.InvariantCulture
+            );
+
+            // dateTimestampLTE 是選填。
+            // 如果有傳，就用它當查詢結束時間。
+            // 如果沒傳，就用目前時間 DateTime.Now。
+            DateTime endTime;
+
+            if (string.IsNullOrWhiteSpace(request.DateTimestampLTE))
+            {
+                endTime = DateTime.Now;
+            }
+            else
+            {
+                endTime = DateTime.ParseExact(
+                    request.DateTimestampLTE,
+                    "yyyy-MM-dd HH:mm:ss",
+                    CultureInfo.InvariantCulture
+                );
+            }
+
             using (var connection = _connectionFactory.CreateConnection())
             {
                 connection.Open();
 
                 using (var command = connection.CreateCommand())
                 {
-                    // Debug SQL：
+                    // 正式測試版 SQL：
                     //
-                    // 這裡不查 SALES_ORDERS，
-                    // 而是用 Oracle 內建 DUAL 表直接回傳一筆假資料。
+                    // 這裡改回查 SYSTEM.SALES_ORDERS，
+                    // 並且依照文件 request body 的時間範圍查詢資料。
                     //
-                    // 如果 /api/so 可以看到 DEBUG_ROW，
-                    // 代表：
-                    // 1. OracleConnectionFactory 正常
-                    // 2. OracleConnection 正常
-                    // 3. Repository 有被呼叫
-                    // 4. reader mapping 正常
-                    //
-                    // 如果這樣還是 Data: []，
-                    // 就代表目前程式可能沒有跑到這份 Repository，
-                    // 或 IIS Express 還在跑舊版本。
+                    // dateTimestampGTE / dateTimestampLTE
+                    // 會對應到 DB 裡的 UPDATE_TS。
                     command.CommandText = @"
-                        SELECT
-                            TRANSACTION_ID,
-                            POS_APPLE_ID,
-                            INVOICE_NUMBER,
-                            TRANSATION_TS,
-                            MPN_ID,
-                            SERIAL_NUMBER,
-                            TRANSACTION_TYPE,
-                            UPDATE_TS,
-                            COMMENTS
-                        FROM SYSTEM.SALES_ORDERS
-                        ORDER BY UPDATE_TS
-                    ";
+        SELECT
+            TRANSACTION_ID,
+            POS_APPLE_ID,
+            INVOICE_NUMBER,
+            TRANSATION_TS,
+            MPN_ID,
+            SERIAL_NUMBER,
+            TRANSACTION_TYPE,
+            UPDATE_TS,
+            COMMENTS
+        FROM SYSTEM.SALES_ORDERS
+        WHERE UPDATE_TS >= :dateTimestampGTE
+          AND UPDATE_TS <= :dateTimestampLTE
+        ORDER BY UPDATE_TS
+    ";
+
+                    // 讓 Oracle 根據參數名稱綁定，
+                    // 而不是根據參數加入順序。
+                    command.BindByName = true;
+
+                    // dateTimestampGTE 對應查詢起始時間
+                    command.Parameters.Add(
+                        new OracleParameter("dateTimestampGTE", OracleDbType.Date)
+                        {
+                            Value = startTime
+                        }
+                    );
+
+                    // dateTimestampLTE 對應查詢結束時間
+                    command.Parameters.Add(
+                        new OracleParameter("dateTimestampLTE", OracleDbType.Date)
+                        {
+                            Value = endTime
+                        }
+                    );
 
                     using (var reader = command.ExecuteReader())
                     {
